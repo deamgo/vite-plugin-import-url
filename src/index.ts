@@ -21,6 +21,7 @@ export default function viteImportUrl(): Plugin {
   const virtualModules = new Map<string, string>();
   return {
     name: "vite-plugin-import-url",
+    enforce: "pre",
     configResolved(config: ResolvedConfig) {
       configResolved = config;
     },
@@ -37,6 +38,7 @@ export default function viteImportUrl(): Plugin {
           const importerContent = await readFile(importer!, {
             encoding: "utf8",
           });
+
           const regexp = urlImportRegex(source);
           if (regexp.test(importerContent)) {
             modId = "\0virtual:" + source + ext;
@@ -47,8 +49,11 @@ export default function viteImportUrl(): Plugin {
       }
     },
     async load(id: string) {
-      if (virtualModules.has(id)) {
-        const realId = virtualModules.get(id)!;
+      const resolvedId = Array.from(virtualModules.entries()).find(
+        ([key, value]) => value === id
+      )?.[0];
+      if (virtualModules.has(id) || resolvedId) {
+        const realId = virtualModules.get(resolvedId || id)!;
         this.addWatchFile(realId);
         let createCode = "";
         const relativePath = path.relative(configResolved.root, realId);
@@ -58,18 +63,25 @@ export default function viteImportUrl(): Plugin {
     },
     async transform(code: string, id: string) {
       const ext = extname(id);
+      const resolvedId = Array.from(virtualModules.entries()).find(
+        ([key, value]) => value === id
+      )?.[0];
+
       if (
         (id.includes("virtual") && supportFileType.includes(ext)) ||
-        id.endsWith("?url")
+        id.endsWith("?url") ||
+        resolvedId
       ) {
+        let newId = resolvedId || id;
         let newCode = code;
         if (configResolved?.command === "build") {
           const regex = /\/([^\/]+)\.tsx?(?=\?|$)/;
-          const match = id.match(regex);
+          const match = newId.match(regex);
+
           if (match && match[1]) {
             const url = `${configResolved?.base || "/"}${match[1]}.js`;
-            if (id.includes("virtual")) {
-              const realId = virtualModules.get(id);
+            if (newId.includes("virtual")) {
+              const realId = virtualModules.get(newId);
               newCode = `const url = '${url}'; export default url;`;
               entryFiles.add({ code, id: realId, type: "virtual" });
             } else {
@@ -92,6 +104,8 @@ export default function viteImportUrl(): Plugin {
     async generateBundle() {
       if (configResolved?.command === "build") {
         const plugins = configResolved?.worker?.plugins;
+        const outputDir = configResolved.build.outDir || "dist";
+
         entryFiles.forEach(async (file) => {
           let actualPath;
           switch (file.type) {
@@ -104,13 +118,10 @@ export default function viteImportUrl(): Plugin {
           if (!actualPath) {
             return;
           }
-
           const noNeedVitePlugins = ["vite:css", "vite:css-post"];
-
           const vitePlugins = (await plugins([])).filter(
             (i) => !noNeedVitePlugins.includes(i.name)
           );
-
           const bundle: RollupBuild = await rollup({
             input: actualPath,
             plugins: [
@@ -126,11 +137,11 @@ export default function viteImportUrl(): Plugin {
           await bundle.generate({
             format: "esm",
           });
+
           bundle.write({
-            dir: "dist",
+            dir: outputDir,
             format: "esm",
           });
-
           await bundle.close();
         });
       }

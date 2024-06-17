@@ -1,0 +1,22 @@
+{
+  "name": "vite-project2",
+  "version": "0.0.0",
+  "description": "",
+  "type": "module",
+  "main": "./src/index.js",
+  "scripts": {
+    "build": "vite build"
+  },
+  "peerDependencies": {
+    "vite": "5.2.12",
+    "vitest": "latest",
+    "vite-plugin-import-url": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "20.14.0",
+    "typescript": "5.4.5"
+  },
+  "author": "",
+  "keywords": [],
+  "license": "MIT"
+}
