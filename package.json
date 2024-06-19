@@ -1,6 +1,6 @@
 {
   "name": "vite-plugin-import-url",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "",
   "type": "module",
   "types": "./dist/index.d.ts",
