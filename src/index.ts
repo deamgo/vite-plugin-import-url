@@ -68,7 +68,7 @@ export default function viteImportUrl(): Plugin {
       )?.[0];
 
       if (
-        (id.includes("virtual") && supportFileType.includes(ext)) ||
+        (id.includes("\0virtual:") && supportFileType.includes(ext)) ||
         id.endsWith("?url") ||
         resolvedId
       ) {
